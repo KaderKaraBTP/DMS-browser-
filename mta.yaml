@@ -1,0 +1,128 @@
+_schema-version: "3.2"
+ID: DMS-browser
+version: 0.0.1
+description: "BTP DMS Repository Browser application"
+provider: Olymel BTP Team (kaderkara@olymel.com)
+copyright: © Olymel 2024
+
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+
+###################      MODULES    ###############################  
+modules:
+###################################################################  
+# --------------------  APPROUTER -----------------------------  
+- name: DMS-browser-approuter
+# ------------------------------------------------------------
+  type: approuter.nodejs
+  path: app
+  requires:
+  - name: DMS-browser-html5repo-rt
+  - name: DMS-browser-uaa
+  - name: DMS-browser-logging  
+  - name: DMS-browser-destination-service
+    group: destinations
+    properties:
+      forwardAuthToken: true
+      name: ui5
+      url: https://ui5.sap.com
+  parameters:
+    disk-quota: 256M
+    memory: 256M
+
+# -------------------- UI MODULE ------------------------  
+- name: uimodule
+# ------------------------------------------------------------
+  type: html5
+  path: app/uimodule
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+
+# -------------------- SIDECAR MODULE ------------------------      
+- name: DMS-browser_ui_deployer
+# ------------------------------------------------------------
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: DMS-browser-html5repo
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: gen/app
+    requires:
+    - artifacts:
+      - uimodule.zip
+      name: uimodule
+      target-path: gen/app/
+
+###################      RESOURCES    #############################  
+resources:
+###################################################################  
+# -------------------- HTML5 REPO SERVICE -------------------  
+- name: DMS-browser-html5repo
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-host    
+# ------------------------------------------------------------    
+- name: DMS-browser-html5repo-rt
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-runtime    
+
+# ----------------------- XSUAA SERVICE ------------------------    
+- name: DMS-browser-uaa
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-name: DMS-browser-xsuaa-service
+    service-plan: application
+
+# -------------------- DESTINATION SERVICE -------------------     
+- name: DMS-browser-destination-service
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: false
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          existing_destinations_policy: update
+      version: 1.0.0
+    service: destination
+    service-name: DMS-browser-destination-service
+    service-plan: lite
+
+# -------------------- APPLICATIONS LOGs SERVICE -------------         
+- name: DMS-browser-logging
+# ------------------------------------------------------------
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: application-logs
+    service-plan: lite
+
+###################      BUILD    ###############################
+build-parameters:
+#################################################################
+  before-all:
+  - builder: custom
+    commands:
+    - npm install --production
+    - npx -p @sap/cds-dk cds build --production

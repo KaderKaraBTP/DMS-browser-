@@ -1,0 +1,46 @@
+{
+  "xsappname": "DMS-browser",
+  "tenant-mode": "dedicated",
+  "description": "Security profile of called application",
+  "scopes": [
+    {
+      "name": "uaa.user",
+      "description": "UAA"
+    } ,
+    {
+        "name": "$XSAPPNAME.Viewer",
+        "description": "Viewer"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "Token_Exchange",
+      "description": "UAA",
+      "scope-references": [
+        "uaa.user"
+      ]
+    } ,
+    {
+        "name": "Viewer",
+        "description": "Viewer",
+        "scope-references": [
+            "$XSAPPNAME.Viewer"
+        ]
+    }
+  ],
+  "role-collections": [
+      {
+          "name": "DMS_Browser_App_Viewer",
+          "description": "Viewing access",
+          "role-template-references": [
+              "$XSAPPNAME.Viewer"
+          ]
+      }
+    ],
+  "oauth2-configuration": {
+    "token-validity": 3600,
+    "redirect-uris": [
+        "https://*.cfapps.eu10.hana.ondemand.com/login/callback"
+    ]
+}
+}
